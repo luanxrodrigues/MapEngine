@@ -1,10 +1,12 @@
 
 
+
 pub struct Thing {
     pub transform:ThingTransform,
     pub _type:ThingType,
     pub bounding_box:(f32,f32),
-    id:u64
+    id:u64,
+    pub layer_id : u16
 }
 pub struct ThingTransform{
     position:(f32,f32),
@@ -16,15 +18,17 @@ pub enum ThingType{
     Object,
     Lighning,
     Empty,
+    Area,
 }
 
 impl Thing{
-    pub fn new(transform:ThingTransform,_type: ThingType,id:u64) -> Self{
+    pub fn new(transform:ThingTransform,_type: ThingType,id:u64,layer_id:u16) -> Self{
         Self{
             _type:_type,
             transform:transform,
             bounding_box:(0.0,0.0),
-            id:id
+            id:id,
+            layer_id:layer_id
         }
     }
     pub fn get_id(&self) -> u64{
