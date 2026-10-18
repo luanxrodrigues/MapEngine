@@ -9,7 +9,7 @@ fn main() {
     //mapengine_lib::run()
 }
 fn create_test_map() -> map::Map{
-    let mut map = map::Map::new((100,100),"Test Map".to_string(),"0.0.1".to_string());
+    let mut map = map::Map::new((32,32),"test".to_string(),"0.0.1".to_string());
 
     map
 }
@@ -27,9 +27,32 @@ mod tests {
     }
 
     #[test]
-    fn encode() {
+    fn encode1() {
         let mut map: map::Map = create_test_map();
-        
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
         map.add_thing(ThingTransform { 
             position: (0.0,0.0),
              rotation: (0.0,0.0,0.0),
@@ -39,6 +62,42 @@ mod tests {
         let _  = map::Map::encode_map(&map, "test.rmap".to_string());
 
     }
+    #[test]
+    fn encode() {
+        let mut map: map::Map = create_test_map();
+        map.add_thing(ThingTransform { 
+            position: (1.0,1.0),
+             rotation: (20.0,30.0,15.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        map.add_thing(ThingTransform { 
+            position: (0.0,0.0),
+             rotation: (0.0,0.0,0.0),
+              scale: 1.0,
+               depth: 1 
+            }, ThingType::Object,0, "Mesa".to_string());
+        let _  = map::Map::encode_map(&map, "test2.rmap".to_string());
 
+        
+    }
 
 }
