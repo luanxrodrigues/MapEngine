@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import Loading from "../loading.svelte"
 
   let name = $state("");
   let greetMsg = $state("");
@@ -11,9 +12,10 @@
     greetMsg = await invoke("greet", { name });
   }
 
-  function OpenLoadingScreen()
+  function ToggleLoadingScreen()
   {
-    
+    LoadingScreen = !LoadingScreen;
+    console.log("Change")
   }
   function OpenSettings()
   {
@@ -23,14 +25,14 @@
   {
     
   }
+  console.log(  invoke('greet',{
+    name:"Luan"
+  }))
 </script>
 
 <main class="container">
-<div class="Loading">
-    <div class="LoadingContainer">
 
-    </div>
-</div>
+
 <div class="body">
       <div class="sidebar">
     <div class="tag">
@@ -38,7 +40,7 @@
       <h2 class="version">Pre-Alpha</h2>
     </div>
       <ul>
-        <li class="mainButton"><button onclick={OpenLoadingScreen}>Load Map</button></li>
+        <li class="mainButton"><button onclick={() => {ToggleLoadingScreen()}}>Load Map</button></li>
         <li class="mainButton"><button>Settings</button></li>
         <li class="mainButton"><button>Exit</button></li>
       </ul>
@@ -47,6 +49,9 @@
 
     </div>
 </div>
+{#if LoadingScreen==true}
+  <Loading OnClose={ToggleLoadingScreen}></Loading>
+{/if}
 </main>
 
 <style>
@@ -66,6 +71,7 @@
     background-repeat: no-repeat;
     background-size: cover;
     box-shadow: 0 0 400px rgba(0,0,0,1) inset;
+    position: relative;
   }
   .sidebar{
     display: flex;
