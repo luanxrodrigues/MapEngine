@@ -1,50 +1,301 @@
-use crate::thing::{self, Thing,ThingType, ThingTransform};
+
+use crate::thing::{self, Thing, ThingTransform, ThingType};
+use std::fs::{self, File};
+use std::io::{self, BufWriter, Write};
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+const MAGIC_BYTES: &[u8; 6] = b"[RMAP]";
+const HEADER_MARKER: &[u8; 8] = b"[HEADER]";
+const SETTINGS_MARKER: &[u8; 10] = b"[SETTINGS]";
+const THINGS_MARKER: &[u8; 8] = b"[THINGS]";
+const AREAS_MARKER: &[u8; 7] = b"[AREAS]";
+
 pub struct Map {
-    pub name: String,
-    width: u32,
-    height: u32,
-    pub things:Vec<thing::Thing>,
-    next_id : u64,
-    next_layer_id:u16,
-    layers:Vec<Layer>
-}
-pub struct Layer {
-    pub id:u16,
-    pub name:String
+    pub width: u32,
+    pub height: u32,
+    pub things: Vec<Thing>,
+    next_id: u32,
+    next_layer_id: u16,
+    layers: Vec<Layer>,
+    pub metadata: MapMetadata,
+    pub settings: MapSettings,
 }
 
-impl Map{
-    pub fn new(size:(u32,u32),name:String) -> Self{
-        Self{
-            width:size.0,
-            height:size.1,
-            name:name,
-            things:Vec::new(),
-            next_id:0,
-            next_layer_id:0,
-            layers:Vec::new()
-        }
+pub struct Layer {
+    pub id: u16,
+    pub name: String,
+}
+
+pub struct MapMetadata {
+    pub name: String,
+    pub create_at: SystemTime,
+    pub last_edit: SystemTime,
+    pub game_version: String,
+}
+
+pub struct MapSettings {
+    pub background_color: (u8, u8, u8),
+    pub grid_enabled: bool,
+    pub printer_friendly: bool,
+    pub grid_size: (u32, u32),
+}
+
+impl Map {
+    pub fn new(
+        size: (u32, u32),
+        name: String,
+        version: String,
+    ) -> Self {
+        let now = SystemTime::now();
+
+        let mut map = Self {
+            width: size.0,
+            height: size.1,
+            things: Vec::new(),
+            next_id: 0,
+            next_layer_id: 0,
+            layers: Vec::new(),
+            metadata: MapMetadata {
+                name,
+                create_at: now,
+                last_edit: now,
+                game_version: version,
+            },
+            settings: MapSettings {
+                background_color: (255, 255, 255),
+                grid_enabled: false,
+                printer_friendly: true,
+                grid_size: (32, 32),
+            },
+        };
+
+        map.create_layer("Default".to_string());
+
+        map
     }
 
-    pub fn add_thing(&mut self, thing_transform:ThingTransform,thing_type:ThingType,thing_layer:Layer) -> u64
-    {
+    // Map editing functions
+
+    pub fn add_thing(
+        &mut self,
+        thing_transform: ThingTransform,
+        thing_type: ThingType,
+        thing_layer: u16,
+        name: String,
+    ) -> u32 {
         let id = self.next_id;
         self.next_id += 1;
-        let added : Thing = Thing::new(thing_transform,thing_type,id,thing_layer.id);
+
+        let added = Thing::new(
+            thing_transform,
+            thing_type,
+            id,
+            thing_layer,
+            name,
+        );
 
         self.things.push(added);
 
         id
     }
 
-    pub fn create_layer(&mut self,layerName:String) -> u16{
+    pub fn create_layer(&mut self, layer_name: String) -> u16 {
         let id = self.next_layer_id;
         self.next_layer_id += 1;
-        let newLayer = Layer{
-            id:id,
-            name:layerName
-        };
+
+        self.layers.push(Layer {
+            id,
+            name: layer_name,
+        });
 
         id
     }
+
+    pub fn get_layer(&self, layer_id: u16) -> Option<&Layer> {
+        self.layers.iter().find(|layer| layer.id == layer_id)
+    }
+
+    pub fn get_layers(&self) -> &Vec<Layer> {
+        &self.layers
+    }
+
+    // Map saving functions
+
+    pub fn close_editing(&mut self) {
+        self.metadata.last_edit = SystemTime::now();
+        self.save_map();
+    }
+
+    pub fn save_map(&mut self) {
+        // TODO: Definir o caminho do arquivo e chamar encode_map().
+    }
+
+    pub fn encode_map(&self, path: String) -> Result<(), String> {
+        let maps_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("maps");
+
+        fs::create_dir_all(&maps_dir)
+            .map_err(|e| format!("Não foi possível criar o diretório de mapas: {e}"))?;
+
+        let file_path = maps_dir.join(path);
+
+        let file = File::create(&file_path)
+            .map_err(|e| format!("Não foi possível criar o arquivo: {e}"))?;
+
+        let mut writer = BufWriter::new(file);
+
+        // Magic bytes
+        writer
+            .write_all(MAGIC_BYTES)
+            .map_err(|e| format!("Não foi possível escrever o identificador: {e}"))?;
+
+        // Header
+        writer
+            .write_all(HEADER_MARKER)
+            .map_err(|e| format!("Não foi possível escrever o cabeçalho: {e}"))?;
+
+        writer
+            .write_all(&self.width.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a largura: {e}"))?;
+
+        writer
+            .write_all(&self.height.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a altura: {e}"))?;
+
+        write_string(&mut writer, &self.metadata.name)
+            .map_err(|e| format!("Não foi possível escrever o nome do mapa: {e}"))?;
+
+        write_string(&mut writer, &self.metadata.game_version)
+            .map_err(|e| format!("Não foi possível escrever a versão do jogo: {e}"))?;
+
+        let created_at = self
+            .metadata
+            .create_at
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let last_edit = self
+            .metadata
+            .last_edit
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        writer
+            .write_all(&created_at.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a data de criação: {e}"))?;
+
+        writer
+            .write_all(&last_edit.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a data de edição: {e}"))?;
+
+        // Settings
+        writer
+            .write_all(SETTINGS_MARKER)
+            .map_err(|e| format!("Não foi possível escrever o marcador de configurações: {e}"))?;
+
+        let (r, g, b) = self.settings.background_color;
+
+        writer
+            .write_all(&[r, g, b])
+            .map_err(|e| format!("Não foi possível escrever a cor de fundo: {e}"))?;
+
+        writer
+            .write_all(&[
+                u8::from(self.settings.grid_enabled),
+                u8::from(self.settings.printer_friendly),
+            ])
+            .map_err(|e| format!("Não foi possível escrever as configurações booleanas: {e}"))?;
+
+        let (grid_width, grid_height) = self.settings.grid_size;
+
+        writer
+            .write_all(&grid_width.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a largura da grade: {e}"))?;
+
+        writer
+            .write_all(&grid_height.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a altura da grade: {e}"))?;
+
+        // Things
+        writer
+            .write_all(THINGS_MARKER)
+            .map_err(|e| format!("Não foi possível escrever o marcador de objetos: {e}"))?;
+
+        let thing_count = u32::try_from(self.things.len())
+            .map_err(|_| "Quantidade de objetos excede o limite do formato.".to_string())?;
+
+        writer
+            .write_all(&thing_count.to_le_bytes())
+            .map_err(|e| format!("Não foi possível escrever a quantidade de objetos: {e}"))?;
+
+        for thing in &self.things {
+            if thing.name.len() > thing::THING_NAME_LENGTH {
+                return Err(format!(
+                    "Nome de objeto muito longo: {:?}, ID: {}",
+                    thing.name,
+                    thing.get_id()
+                ));
+            }
+
+            thing
+                .write_to(&mut writer)
+                .map_err(|e| {
+                    format!(
+                        "Não foi possível serializar o objeto {}: {e}",
+                        thing.get_id()
+                    )
+                })?;
+        }
+
+        // Areas — marcador reservado para implementação futura.
+        writer
+            .write_all(AREAS_MARKER)
+            .map_err(|e| format!("Não foi possível escrever o marcador de áreas: {e}"))?;
+
+        writer
+            .flush()
+            .map_err(|e| format!("Não foi possível finalizar a escrita do arquivo: {e}"))?;
+
+        Ok(())
+    }
+
+    pub fn decode_map(path: String) -> Result<Map, String> {
+        let file = File::open(&path)
+            .map_err(|e| format!("Não foi possível abrir o arquivo: {e}"))?;
+
+        let _reader = io::BufReader::new(file);
+
+        // TODO:
+        // 1. Validar MAGIC_BYTES.
+        // 2. Ler o cabeçalho na mesma ordem usada por encode_map().
+        // 3. Ler as configurações.
+        // 4. Reconstruir os objetos.
+        // 5. Ler as áreas quando essa seção for implementada.
+
+        Err("A desserialização ainda não foi implementada.".to_string())
+    }
+}
+
+/// Escreve uma string como:
+/// [tamanho em bytes: u32][conteúdo UTF-8]
+fn write_string<W: Write>(
+    writer: &mut W,
+    value: &str,
+) -> io::Result<()> {
+    let bytes = value.as_bytes();
+
+    let length = u32::try_from(bytes.len()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "String grande demais para o formato .rmap.",
+        )
+    })?;
+
+    writer.write_all(&length.to_le_bytes())?;
+    writer.write_all(bytes)?;
+
+    Ok(())
 }
