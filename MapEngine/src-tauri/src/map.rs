@@ -84,6 +84,7 @@ impl Map {
         thing_layer: u16,
         name: String,
     ) -> u32 {
+        
         let id = self.next_id;
         self.next_id += 1;
 
