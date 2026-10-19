@@ -6,7 +6,7 @@ mod thing;
 use thing::{Thing,ThingTransform,ThingType};
 
 fn main() {
-    //mapengine_lib::run()
+    mapengine_lib::run()
 }
 fn create_test_map() -> map::Map{
     let mut map = map::Map::new((32,32),"test".to_string(),"0.0.1".to_string());
