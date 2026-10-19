@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import Loading from "../loading.svelte"
+  import Loading from "../components/menu/loading.svelte"
 
   let name = $state("");
   let greetMsg = $state("");
