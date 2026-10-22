@@ -1,7 +1,9 @@
 
+use tauri::http::version;
+
 use crate::thing::{self, Thing, ThingTransform, ThingType};
 use std::fs::{self, File};
-use std::io::{self, BufWriter, Write};
+use std::io::{self, BufWriter, Read, Seek, Write};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -84,6 +86,7 @@ impl Map {
         thing_layer: u16,
         name: String,
     ) -> u32 {
+
         let id = self.next_id;
         self.next_id += 1;
 
@@ -139,7 +142,7 @@ impl Map {
             .map_err(|e| format!("Não foi possível criar o diretório de mapas: {e}"))?;
 
         let file_path = maps_dir.join(path);
-
+        
         let file = File::create(&file_path)
             .map_err(|e| format!("Não foi possível criar o arquivo: {e}"))?;
 
@@ -155,16 +158,33 @@ impl Map {
             .write_all(HEADER_MARKER)
             .map_err(|e| format!("Não foi possível escrever o cabeçalho: {e}"))?;
 
+
+        //Definindo tamanho maximo das dimensões do mapa como 4 bytes
+
+        let mut width_buf = [0u8;4];
+        &width_buf[..self.width.to_le_bytes().len()].copy_from_slice(&self.width.to_le_bytes());
+        
         writer
-            .write_all(&self.width.to_le_bytes())
+            .write_all(&width_buf)
             .map_err(|e| format!("Não foi possível escrever a largura: {e}"))?;
 
+        let mut height_buf = [0u8;4];
+        &height_buf[..self.height.to_le_bytes().len()].copy_from_slice(&self.height.to_le_bytes());
+        
+
+
         writer
-            .write_all(&self.height.to_le_bytes())
+            .write_all(&height_buf)
             .map_err(|e| format!("Não foi possível escrever a altura: {e}"))?;
+
+        
+
+        writer.seek(io::SeekFrom::Current((1)));
 
         write_string(&mut writer, &self.metadata.name)
             .map_err(|e| format!("Não foi possível escrever o nome do mapa: {e}"))?;
+
+        writer.seek(io::SeekFrom::Current(1));
 
         write_string(&mut writer, &self.metadata.game_version)
             .map_err(|e| format!("Não foi possível escrever a versão do jogo: {e}"))?;
@@ -262,11 +282,18 @@ impl Map {
         Ok(())
     }
 
-    pub fn decode_map(path: String) -> Result<Map, String> {
-        let file = File::open(&path)
+    pub fn decode_map(filename: String) -> Result<String, String> {
+
+        let maps_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("maps");
+        
+        let mut filedir = maps_dir.join(format!("{}.rmap",filename));
+ 
+        
+        let file = File::open(filedir)
             .map_err(|e| format!("Não foi possível abrir o arquivo: {e}"))?;
 
-        let _reader = io::BufReader::new(file);
+        let mut _reader = io::BufReader::new(file);
 
         // TODO:
         // 1. Validar MAGIC_BYTES.
@@ -275,8 +302,42 @@ impl Map {
         // 4. Reconstruir os objetos.
         // 5. Ler as áreas quando essa seção for implementada.
 
+        //Validating Magic bytes
+        let mut buffer = [0u8; 6];
+
+        _reader.read_exact(&mut buffer)
+           .map_err(|e| format!("Não foi possível ler os magic bytes: {e}"))?;
+
+        if &buffer != MAGIC_BYTES
+        {
+            return Err("Arquivo corrompido ou mal formado".to_string())
+        }
+        
+        let mut buffer = [0u8;8];
+        _reader.read_exact(&mut buffer)
+            .map_err(|e| format!("Não foi possivel encontrar os bits de HEADER"));
+
+        if &buffer != HEADER_MARKER
+        {
+
+            return Err("Arquivo corrompido ou mal formado".to_string())
+            
+        };
+
+        eprintln!("reader at position: {:?}",_reader.stream_position());
+
+        let mut width_buf = [0u8;4];
+        let bytes_read = _reader.read_exact(&mut width_buf);
+
+        
+        let mut height_buf = [0u8;4];
+        let bytes_read1 = _reader.read_exact(&mut height_buf);        
+
+        return Err(format!("width: {:?} | height: {:?} | Reading bytes : {:?},{:?}",width_buf,height_buf, bytes_read, bytes_read1));
+        
         Err("A desserialização ainda não foi implementada.".to_string())
     }
+
 }
 
 /// Escreve uma string como:
@@ -299,3 +360,32 @@ fn write_string<W: Write>(
 
     Ok(())
 }
+fn return_section_header(file:File,buffer:&[u8])
+{
+    println!("{:?}",buffer);
+}
+
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+
+    #[test]
+    fn get_section_header()
+    {
+        
+    }
+    #[test]
+    fn decode_test()
+    {
+        let decoded_map = Map::decode_map("test".to_string())
+        .map_err(|e| format!("Decoder error thrown : {:?}", e));
+        
+        println!("{:?}",decoded_map)
+    }    
+
+}
+

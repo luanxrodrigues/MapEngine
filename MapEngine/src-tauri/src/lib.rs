@@ -37,7 +37,7 @@ fn list_maps() -> Result<Vec<String>, String>
         .map_err(|e| format!("Erro ao ler entrada: {e}"))?;
 
         let path = entry.path();
-        if !path.is_file() || !path.extension().is_some_and(|ext| ext == "json") 
+        if !path.is_file() || !path.extension().is_some_and(|ext| ext == "rmap") 
         {continue};
         
         if let Some(name) = path.file_stem() {
@@ -48,3 +48,4 @@ fn list_maps() -> Result<Vec<String>, String>
     maps.sort();
     Ok(maps)
 }
+
