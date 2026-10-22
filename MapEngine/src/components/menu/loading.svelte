@@ -26,7 +26,6 @@
     import {invoke} from "@tauri-apps/api/core"
     let maps : string = $state("")
     $inspect(maps).with(console.trace)
-    HandleMapLoad()
 
     let { OnClose }: { OnClose: () => void } = $props();
 
@@ -35,6 +34,7 @@
     async function HandleMapLoad()
     {
         try{
+            console.log("try")
             invoke<string>('list_maps')
                 .then((val) => {
                     console.log(val)
@@ -47,7 +47,7 @@
         }
     }
     
-
+    HandleMapLoad();
 </script>
 <style>
 

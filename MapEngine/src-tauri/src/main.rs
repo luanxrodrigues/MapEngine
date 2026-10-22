@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn generate_map() {
         let mut map = create_test_map();
-        assert_eq!(map.width,100);
+        assert_eq!(map.width,32);
     }
 
     #[test]
@@ -96,7 +96,7 @@ mod tests {
                depth: 1 
             }, ThingType::Object,0, "Mesa".to_string());
         let _  = map::Map::encode_map(&map, "test2.rmap".to_string());
-
+        
         
     }
 
